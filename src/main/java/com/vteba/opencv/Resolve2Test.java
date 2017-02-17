@@ -11,6 +11,9 @@ import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Created by yinlei on 17-2-15.
  */
@@ -37,6 +40,9 @@ public class Resolve2Test {
 
         ITesseract instance = new Tesseract();
         instance.setLanguage("shz4");
+        List<String> configs = new ArrayList<>();
+        configs.add("digits");
+        instance.setConfigs(configs);
         instance.setDatapath("/usr/local/tesseract-3.04.01/tessdata/");
 
         MatImageUtils matImage = new MatImageUtils(small, ".png");
