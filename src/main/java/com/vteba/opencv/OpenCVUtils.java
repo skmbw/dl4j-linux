@@ -185,16 +185,24 @@ public class OpenCVUtils {
         return result;
     }
 
+    public static Mat getSlice(Mat image, Rect rect) {
+        Mat slice = new Mat(image, rect);
+
+        Mat result = new Mat();
+        slice.copyTo(result);
+        return result;
+    }
+
     public static void main(String[] a) throws Exception {
 //        FileInputStream fis = new FileInputStream("/home/yinlei/yinlei.png");
 //        Mat mat = toMat(fis);
 //
 //        toBytes(mat, ".jpg");
 
-        Map<String, Mat> map = getCardSlice("/home/yinlei/idcard2.jpg");
+        Map<String, Mat> map = getCardSlice("/home/yinlei/idcard3.jpg");
 
         for (Map.Entry<String, Mat> entry : map.entrySet()) {
-            Imgcodecs.imwrite("/tmp/" + entry.getKey() + ".png", entry.getValue());
+            Imgcodecs.imwrite("/tmp/" + entry.getKey() + "3.png", entry.getValue());
         }
     }
 }

@@ -34,9 +34,14 @@ public class MatImageUtils {
     private MatOfByte mob;
     private String fileExten;
 
-    // The file extension string should be ".jpg", ".png", etc
-    public MatImageUtils(Mat amatrix, String fileExtension) {
-        matrix = amatrix;
+    /**
+     * 将OpenCV的Mat结构转成Java的BufferedImage<br>
+     * The file extension string should be ".jpg", ".png", etc
+     * @param matrix 图片数据
+     * @param fileExtension 文件扩展名
+     */
+    public MatImageUtils(Mat matrix, String fileExtension) {
+        this.matrix = matrix;
         fileExten = fileExtension;
         mob = new MatOfByte();
     }

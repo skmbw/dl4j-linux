@@ -7,7 +7,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 
 /**
- * 图像转换成OpenCV的Mat
+ * 图像转换成OpenCV的Mat。使用静态方法也可以的。
  *
  * @author yinlei
  * @since 2017-1-17
