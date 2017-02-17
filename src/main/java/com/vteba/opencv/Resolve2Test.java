@@ -25,7 +25,7 @@ public class Resolve2Test {
     public static String s = "38";
 
     public static void main(String[] args) {
-        Mat yl03 = Imgcodecs.imread("/tmp/code.png");
+        Mat yl03 = Imgcodecs.imread("/tmp/code3.png");
 //        Mat dst = new Mat();
 //        Size size = new Size(1, 1); // size 很大的情况下，就看不清楚了（加一个遮罩层，看不清图片）
 //        Imgproc.blur(yl03, dst, size); // 平滑，降噪
@@ -39,7 +39,7 @@ public class Resolve2Test {
         Mat small = OpenCVUtils.getSlice(yl03, rect);
 
         ITesseract instance = new Tesseract();
-        instance.setLanguage("shz4");
+        instance.setLanguage("black");
         List<String> configs = new ArrayList<>();
         configs.add("digits");
         instance.setConfigs(configs);
