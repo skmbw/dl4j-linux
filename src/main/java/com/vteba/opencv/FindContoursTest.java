@@ -47,7 +47,7 @@ public class FindContoursTest {
 
         for (MatOfPoint matOfPoint : contourList) {
             double area = Imgproc.contourArea(matOfPoint);
-            if (area < 100) {
+            if (area < 1000) {
                 continue;
             }
 
@@ -75,7 +75,7 @@ public class FindContoursTest {
     }
 
     public static void main(String[] args) {
-        Mat yl03 = Imgcodecs.imread("/tmp/address.png");
+        Mat yl03 = Imgcodecs.imread("/home/yinlei/idcard2.jpg");
         Mat dst = new Mat();
 
         Size size = new Size(1, 1); // size 很大的情况下，就看不清楚了（加一个遮罩层，看不清图片）
@@ -96,7 +96,7 @@ public class FindContoursTest {
 
         List<MatOfPoint> boxList = findRegion(mat);
 
-        Imgproc.drawContours(yl03, boxList, 0, new Scalar(0, 255, 0), 2);
+        Imgproc.drawContours(yl03, boxList, 0, new Scalar(0, 255, 0, 0), 2);
 
         Imgcodecs.imwrite("/tmp/contour.png", yl03);
     }
