@@ -51,7 +51,7 @@ public class ImageMatUtils {
             }
         }
 
-//        ImageIO.read(InputStream);
+//        ImageIO.read(InputStream);//
 
         // 对于15位的身份证 最后一位奇数男偶数女
         // 对于18位的身份证 倒数第二位的才是
