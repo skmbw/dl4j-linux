@@ -69,7 +69,7 @@ public class Tesseract1Test {
     }
 
     @Before
-    public void setUp() {
+    public void setUp() { // 这个是使用本地的
         instance = new Tesseract1();
         instance.setLanguage("shz4");
         instance.setDatapath("/usr/local/tesseract-3.04.01/tessdata/");
