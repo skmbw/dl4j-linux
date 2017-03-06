@@ -22,27 +22,32 @@ public class Resolve2Test {
     public static String s = "38";
 
     public static void main(String[] args) {
-        Mat yl03 = Imgcodecs.imread("/home/yinlei/code2.png");
+        Mat yl03 = Imgcodecs.imread("/home/yinlei/Sample/qirenwen2.jpg");
+        //吉林南吉林市丰满区泰山
+        //昭1-1-53号
+
+//        Mat yl03 = Imgcodecs.imread("/tmp/1.png");
+
 //        Mat dst = new Mat();
 //        Size size = new Size(1, 1); // size 很大的情况下，就看不清楚了（加一个遮罩层，看不清图片）
 //        Imgproc.blur(yl03, dst, size); // 平滑，降噪
 //        Mat gray = new Mat();
 //        Imgproc.cvtColor(dst, gray, Imgproc.COLOR_RGB2GRAY); // 灰度图
 
-        int height = (int) (yl03.rows() * 0.7);
-        int width = (int) (yl03.cols() * 0.92);
-        Rect rect = new Rect(0, 0, width, height);
-
-        Mat small = OpenCVUtils.getSlice(yl03, rect);
+//        int height = (int) (yl03.rows() * 0.7);
+//        int width = (int) (yl03.cols() * 0.92);
+//        Rect rect = new Rect(0, 0, width, height);
+//
+//        Mat small = OpenCVUtils.getSlice(yl03, rect);
 
         ITesseract instance = new Tesseract();
-        instance.setLanguage("shz10");
+        instance.setLanguage("shz15"); // shz12是身份证号码，纯数字的。shz11是由地址训练的汉字。shz9也是数字的，168张身份证号码
         List<String> configs = new ArrayList<>();
-        //configs.add("digits");
+//        configs.add("digits");
         instance.setConfigs(configs);
         instance.setDatapath("/usr/local/tesseract-3.04.01/tessdata/");
 
-        MatImageUtils matImage = new MatImageUtils(small, ".png");
+        MatImageUtils matImage = new MatImageUtils(yl03, ".png");
 
         try {
             String result = instance.doOCR(matImage.getImage());
