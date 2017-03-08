@@ -49,12 +49,20 @@ public class FindContoursTest {
         Imgproc.findContours(binary, contourList, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
 
 
+        int sourceWidth = source.width();
+        int sourceHeight = source.height();
+
         List<MatOfPoint> simpleContourList = new ArrayList<>();
         for (MatOfPoint matOfPoint : contourList) {
             double area = Imgproc.contourArea(matOfPoint);
             if (area < 500) {
                 continue;
             }
+            Rect rect = Imgproc.boundingRect(matOfPoint);
+            if (rect.height + 2 == sourceHeight && rect.width + 2 == sourceWidth) {
+                continue;
+            }
+
             simpleContourList.add(matOfPoint);
         }
 
@@ -150,7 +158,29 @@ public class FindContoursTest {
 //        int abs = Math.abs(minxWidth - minxHeight);
 
 
-        Rect re = new Rect(minx - abs, miny, maxx - minx + rmaxx.width + abs, maxy - miny + rmaxy.height);
+        int width = maxx - minx + rmaxx.width + abs;
+        int height = maxy - miny + rmaxy.height;
+
+        // 防止宽度溢出
+        if (minx + width > sourceWidth) {
+            width = sourceWidth - minx;
+        }
+        // 防止高度溢出
+        if (miny + height> sourceHeight) {
+            height = sourceHeight - miny;
+        }
+
+        int x = minx - abs;
+
+        if (x < 0) {
+            x = 1;
+        }
+
+        if (miny < 0) {
+            miny = 1;
+        }
+
+        Rect re = new Rect(x, miny, width, height);
         Mat addressMat = new Mat(source, re);
         Mat newAddress = new Mat();
         addressMat.copyTo(newAddress);
@@ -198,7 +228,7 @@ public class FindContoursTest {
     }
 
     public static void main(String[] args) {
-        Mat yl03 = Imgcodecs.imread("/home/yinlei/Sample/hx.jpg");
+        Mat yl03 = Imgcodecs.imread("/home/yinlei/Sample/wuwei.jpg");
         Map<String, Mat> matMap = getCardSlice2(yl03);
         Mat dst = new Mat();
 
