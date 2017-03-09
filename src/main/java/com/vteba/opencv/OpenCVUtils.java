@@ -218,11 +218,23 @@ public class OpenCVUtils {
         Set<Integer> widthSet = new HashSet<>();
 
         int sourceWidth = code.width();
+        int sourceHeight = code.height();
+
+        int areas = sourceWidth * sourceHeight;
+
+        LOGGER.info("code height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, areas);
+
+        int limit = 100;
+        if (areas >= 100000) {
+            limit = areas / 1000;
+        } else if (areas < 100000 && areas >= 10000) {
+            limit = areas / 100;
+        }
 
         // 过滤小的切片，同时选取最大最小的xy坐标，以及宽度和高度
         for (MatOfPoint matOfPoint : contourList) {
             double area = Imgproc.contourArea(matOfPoint);
-            if (area < 150) {
+            if (area < limit) {
                 continue;
             }
             Rect rect = Imgproc.boundingRect(matOfPoint);
@@ -249,10 +261,6 @@ public class OpenCVUtils {
 
         int width = maxx - minx + meanWidth;
         int height = Collections.max(heightSet) + 8; // 切割的太靠近边缘了，加几个像素
-
-        int sourceHeight = code.height();
-
-        LOGGER.info("code height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, sourceHeight * sourceWidth);
 
         // 防止宽度溢出
         if (minx + width > sourceWidth) {
@@ -407,6 +415,13 @@ public class OpenCVUtils {
 
         int sourceWidth = nation.width();
         int sourceHeight = nation.height();
+//        int areas = sourceWidth * sourceHeight;
+//        int divisor = 1;
+//        if (areas >= 100000) {
+//            divisor = 1000;
+//        } else if (areas < 100000 && areas >= 10000) {
+//            divisor = 100;
+//        }
 
         for (MatOfPoint matOfPoint : contourList) {
             double area = Imgproc.contourArea(matOfPoint);
@@ -525,12 +540,20 @@ public class OpenCVUtils {
 
         int sourceWidth = address.width();
         int sourceHeight = address.height();
+        int areas = sourceWidth * sourceHeight;
 
-        LOGGER.info("address height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, sourceHeight * sourceWidth);
+        int limit = 120;
+        if (areas >= 100000) {
+            limit = areas / 1000;
+        } else if (areas < 100000 && areas >= 10000) {
+            limit = areas / 100;
+        }
+
+        LOGGER.info("address height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, areas);
 
         for (MatOfPoint matOfPoint : contourList) {
             double area = Imgproc.contourArea(matOfPoint);
-            if (area < 300) {
+            if (area < limit) {
                 continue;
             }
 
@@ -611,7 +634,7 @@ public class OpenCVUtils {
 //
 //        toBytes(mat, ".jpg");
 
-        Mat mat = Imgcodecs.imread("/home/yinlei/Sample/id34.jpg");
+        Mat mat = Imgcodecs.imread("/home/yinlei/Sample/fan.jpg");
 
         Map<String, Mat> map = FindContoursTest.getCardSlice2(mat);
 
