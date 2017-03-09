@@ -119,6 +119,8 @@ public class MathUtils {
             return null;
         } else if (length == 1) {
             return is[0];
+        } else if (length == 2) {
+            return (is[0] + is[1]) / 2;
         }
 
         Arrays.sort(is);
@@ -145,6 +147,8 @@ public class MathUtils {
             return null;
         } else if (length == 1) {
             return is.stream().findFirst().get();
+        } else if (length == 2) {
+            return mean(is); // 2个就是求平均值
         }
 
         List<Integer> list = new ArrayList<>(is);

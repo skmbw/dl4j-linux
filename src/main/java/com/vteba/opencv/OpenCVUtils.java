@@ -251,6 +251,9 @@ public class OpenCVUtils {
         int height = Collections.max(heightSet) + 8; // 切割的太靠近边缘了，加几个像素
 
         int sourceHeight = code.height();
+
+        LOGGER.info("code height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, sourceHeight * sourceWidth);
+
         // 防止宽度溢出
         if (minx + width > sourceWidth) {
             width = sourceWidth - minx;
@@ -296,94 +299,13 @@ public class OpenCVUtils {
 
         int sourceWidth = name.width();
         int sourceHeight = name.height();
+
+        LOGGER.info("name height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, sourceHeight * sourceWidth);
+
         int i = 1;
         for (MatOfPoint matOfPoint : contourList) {
             double area = Imgproc.contourArea(matOfPoint);
             if (area < 200) { // 这个参数不好控制
-                continue;
-            }
-            Rect rect = Imgproc.boundingRect(matOfPoint);
-            if (sourceWidth == rect.width + 2) {
-                continue;
-            }
-            xlist.put(rect.x, rect);
-            ylist.put(rect.y, rect);
-
-
-            Mat temp = new Mat(name, rect);
-            Imgcodecs.imwrite("/tmp/aa_name" + i++ + ".png", temp);
-        }
-
-        // 如果是截取整块的话，可以找到最小的xy坐标，和最大的xy坐标，然后切割
-
-
-        int maxx = Collections.max(xlist.keySet());
-        int minx = Collections.min(xlist.keySet());
-
-        int maxy = Collections.max(ylist.keySet());
-        int miny = Collections.min(ylist.keySet());
-
-        // 这样做，是要加上最大的切片的width和height
-        Rect rmaxx = xlist.get(maxx);
-        Rect rmaxy = ylist.get(maxy);
-
-        // 因为第一个字可能只切割了一半，所以要，将他变成方形，增加不足的部分
-        Rect rminx = xlist.get(minx);
-        // Rect rminy = ylist.get(miny);
-        Rect rminy = xlist.get(maxx); // 单取一个可能不行，取两个比较以下，选择大的
-
-        int minxWidth = rminx.width;
-        int minxHeight = rminx.height;
-        int minxAbs = Math.abs(minxWidth - minxHeight);
-
-        int minyWidth = rminy.width;
-        int minyHeight = rminy.height;
-        int minyAbs = Math.abs(minyWidth - minyHeight);
-
-        int abs = Math.max(minxAbs, minyAbs);
-
-        int x = minx - abs;
-
-        if (x > sourceWidth * 0.33) { // x坐标，大于整个宽度的三分之一
-            x = (int) (sourceWidth * 0.33) - abs - 20;
-        }
-
-        Rect re = new Rect(x, miny, maxx - minx + rmaxx.width + abs, maxy - miny + rmaxy.height);
-        Mat nameMat = new Mat(name, re);
-        return nameMat;
-    }
-
-    /**
-     * 获取民族的精确轮廓，可以再优化
-     * @param nation nation Mat
-     * @return 精确的轮廓Mat
-     */
-    public static Mat nationContour(Mat nation) {
-        Mat dst = new Mat();
-
-        Size size = new Size(4, 4); // size 很大的情况下，就看不清楚了（加一个遮罩层，看不清图片）
-        Imgproc.blur(nation, dst, size); // 平滑，降噪
-
-        Mat gray = new Mat();
-        Imgproc.cvtColor(dst, gray, Imgproc.COLOR_RGB2GRAY); // 灰度图
-
-        Mat binary = new Mat(); // 二值化
-        Imgproc.adaptiveThreshold(gray, binary, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, 13, 10);
-
-        // 查找轮廓
-        List<MatOfPoint> contourList = new ArrayList<>();
-        Mat hierarchy = new Mat();
-        Imgproc.findContours(binary, contourList, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
-
-        Map<Integer, Rect> xlist = new HashMap<>();
-        Map<Integer, Rect> ylist = new HashMap<>();
-
-
-        int sourceWidth = nation.width();
-//        int i = 1;
-        for (MatOfPoint matOfPoint : contourList) {
-            double area = Imgproc.contourArea(matOfPoint);
-            if (area < 300) { // 这个参数不好控制
                 continue;
             }
             Rect rect = Imgproc.boundingRect(matOfPoint);
@@ -426,9 +348,159 @@ public class OpenCVUtils {
 
         int abs = Math.max(minxAbs, minyAbs);
 
-        Rect re = new Rect(minx - abs, miny, maxx - minx + rmaxx.width + abs, maxy - miny + rmaxy.height);
-        Mat nameMat = new Mat(nation, re);
+        minx = minx - abs;
+
+//        if (x > sourceWidth * 0.33) { // x坐标，大于整个宽度的三分之一
+//            x = (int) (sourceWidth * 0.33) - abs - 20;
+//        }
+
+        int width = maxx - minx + rmaxx.width + abs;
+        int height = maxy - miny + rmaxy.height;
+
+        // 防止宽度溢出
+        if (minx + width > sourceWidth) {
+            width = sourceWidth - minx;
+        }
+        // 防止高度溢出
+        if (miny + height> sourceHeight) {
+            height = sourceHeight - miny;
+        }
+
+        if (minx <= 0) {
+            minx = 1;
+        }
+
+        if (miny <= 0) {
+            miny = 1;
+        }
+
+        Rect re = new Rect(minx, miny, width, height);
+        Mat nameMat = new Mat(name, re);
         return nameMat;
+    }
+
+    /**
+     * 获取民族的精确轮廓，可以再优化
+     * @param nation nation Mat
+     * @return 精确的轮廓Mat
+     */
+    public static Mat nationContour(Mat nation) {
+        Mat dst = new Mat();
+
+        Size size = new Size(4, 4); // size 很大的情况下，就看不清楚了（加一个遮罩层，看不清图片）
+        Imgproc.blur(nation, dst, size); // 平滑，降噪
+
+        Mat gray = new Mat();
+        Imgproc.cvtColor(dst, gray, Imgproc.COLOR_RGB2GRAY); // 灰度图
+
+        Mat binary = new Mat(); // 二值化
+        Imgproc.adaptiveThreshold(gray, binary, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, 13, 10);
+
+        // 查找轮廓
+        List<MatOfPoint> contourList = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(binary, contourList, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        Map<Integer, Rect> xmap = new HashMap<>();
+        Map<Integer, Rect> ymap = new HashMap<>();
+
+
+        int sourceWidth = nation.width();
+        int sourceHeight = nation.height();
+
+        for (MatOfPoint matOfPoint : contourList) {
+            double area = Imgproc.contourArea(matOfPoint);
+            if (area < 200) { // 这个参数不好控制
+                continue;
+            }
+            Rect rect = Imgproc.boundingRect(matOfPoint);
+            if (sourceWidth == rect.width + 2 && sourceHeight == rect.height + 2) { // 原图，去掉
+                continue;
+            }
+            xmap.put(rect.x, rect);
+            ymap.put(rect.y, rect);
+        }
+
+        // 如果是截取整块的话，可以找到最小的xy坐标，和最大的xy坐标，然后切割
+
+
+        List<Integer> xlist = new ArrayList<>(xmap.keySet());
+        List<Integer> ylist = new ArrayList<>(ymap.keySet());
+
+        Collections.sort(xlist);
+        Collections.sort(ylist);
+
+        int xsize = xlist.size();
+        int ysize = ylist.size();
+
+        int maxx = xlist.get(xsize - 1); // Collections.max(xmap.keySet());
+        int minx = xlist.get(0); // Collections.min(xmap.keySet());
+
+        int maxy = ylist.get(ysize - 1); // Collections.max(ymap.keySet());
+        int miny = ylist.get(0); // Collections.min(ymap.keySet());
+
+        // 这样做，是要加上最大的切片的width和height
+        Rect rmaxx = xmap.get(maxx);
+        Rect rmaxy = ymap.get(maxy);
+
+        // 因为第一个字可能只切割了一半，所以要，将他变成方形，增加不足的部分
+        Rect rminx = xmap.get(minx);
+        Rect rminy = xmap.get(maxx); // 单取一个可能不行，取两个比较以下，选择大的
+
+        int minxWidth = rminx.width;
+        int minxHeight = rminx.height;
+        int minxAbs = Math.abs(minxWidth - minxHeight);
+
+        int minyWidth = rminy.width;
+        int minyHeight = rminy.height;
+        int minyAbs = Math.abs(minyWidth - minyHeight);
+
+        int abs = Math.max(minxAbs, minyAbs);
+
+        LOGGER.info("nation height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, sourceHeight * sourceWidth);
+
+        int width = maxx - minx + Math.max(rmaxx.width, rmaxy.width) + abs;
+
+        int maxxHeight = rmaxx.height;
+        int maxyHeight = rmaxy.height;
+
+        // 因为，民族就1行，取行高即可
+        Integer[] heights = new Integer[4];
+        heights[0] = minxHeight;
+        heights[1] = minyHeight;
+        heights[2] = maxxHeight;
+        heights[3] = maxyHeight;
+
+        int avg = MathUtils.mean(heights);
+        int media = MathUtils.media(heights);
+
+        // int hgt1 = Math.max(avg, media); // 取中位数和平均值的最大值
+        // int hgt2 = maxy - miny; // 最大行高，减最小行高
+        int hgt = NumberUtils.max(maxyHeight, maxxHeight, minxHeight, minyHeight, avg, media, maxy - miny);
+
+        int height = hgt; // maxy - miny + Math.max(rmaxy.height, rmaxx.height);
+
+        // 防止宽度溢出
+        if (minx + width > sourceWidth) {
+            width = sourceWidth - minx;
+        }
+        // 防止高度溢出
+        if (miny + height> sourceHeight) {
+            height = sourceHeight - miny;
+        }
+
+        minx = minx - abs;
+        if (minx <= 0) {
+            minx = 1;
+        }
+
+        if (miny <= 0) {
+            miny = 1;
+        }
+
+        Rect re = new Rect(minx, miny, width, height);
+        Mat nationMat = new Mat(nation, re);
+        return nationMat;
     }
 
     public static Mat addressContour(Mat address) {
@@ -454,15 +526,17 @@ public class OpenCVUtils {
         int sourceWidth = address.width();
         int sourceHeight = address.height();
 
+        LOGGER.info("address height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, sourceHeight * sourceWidth);
+
         for (MatOfPoint matOfPoint : contourList) {
             double area = Imgproc.contourArea(matOfPoint);
-            if (area < 500) {
+            if (area < 300) {
                 continue;
             }
 
             Rect rect = Imgproc.boundingRect(matOfPoint);
 
-            if (sourceWidth == rect.width + 2) {
+            if (sourceWidth == rect.width + 2 && sourceHeight == rect.height + 2) {
                 continue;
             }
 
@@ -496,8 +570,8 @@ public class OpenCVUtils {
         int abs = Math.max(minxAbs, minyAbs);
 
 
-        int width = maxx - minx + rmaxx.width + abs;
-        int height = maxy - miny + rmaxy.height;
+        int width = maxx - minx + Math.max(rmaxx.width, rmaxy.width) + abs;
+        int height = maxy - miny + Math.max(rmaxy.height, rmaxx.height);
 
         // 防止宽度溢出
         if (minx + width > sourceWidth) {
@@ -508,17 +582,17 @@ public class OpenCVUtils {
             height = sourceHeight - miny;
         }
 
-        int x = minx - abs;
+        minx = minx - abs;
 
-        if (x < 0) {
-            x = 1;
+        if (minx <= 0) {
+            minx = 1;
         }
 
-        if (miny < 0) {
+        if (miny <= 0) {
             miny = 1;
         }
 
-        Rect re = new Rect(x , miny, width, height);
+        Rect re = new Rect(minx , miny, width, height);
         Mat addressMat = new Mat(address, re);
         return addressMat;
     }
@@ -537,7 +611,7 @@ public class OpenCVUtils {
 //
 //        toBytes(mat, ".jpg");
 
-        Mat mat = Imgcodecs.imread("/home/yinlei/Sample/fan.jpg");
+        Mat mat = Imgcodecs.imread("/home/yinlei/Sample/id34.jpg");
 
         Map<String, Mat> map = FindContoursTest.getCardSlice2(mat);
 
@@ -557,7 +631,7 @@ public class OpenCVUtils {
         Imgcodecs.imwrite("/tmp/aa_nation.png", newNation);
 
         Mat addressMat = map.get("address");
-        Mat newAddress = nationContour(addressMat);
+        Mat newAddress = addressContour(addressMat);
         Imgcodecs.imwrite("/tmp/aa_address.png", newAddress);
     }
 }
