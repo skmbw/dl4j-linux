@@ -344,7 +344,7 @@ public class FindContoursTest {
             // 切割住址，省市区可以通过身份证号码的前三位进行验证，但是不一定正确，因为存在市区合并或者撤销的情况，但是身份证号码不变了
             // 另外有一些身份证地址是以市开头的，并没有省，例如杭州市
             int addressX = (int) (width * 0.18);
-            int addressY = (int) (height * 0.49);
+            int addressY = (int) (height * 0.485);
             int addressWidth = (int) (width * 0.446);
             int addressHeight = (int) (height * 0.276);
 

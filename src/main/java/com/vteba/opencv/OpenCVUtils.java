@@ -537,7 +537,7 @@ public class OpenCVUtils {
 
     public static Mat addressContour(Mat address) {
         Mat dst = new Mat();
-
+//        Imgcodecs.imwrite("/tmp/aaa_address.png", address);
         Size size = new Size(4, 4); // size 很大的情况下，就看不清楚了（加一个遮罩层，看不清图片）
         Imgproc.blur(address, dst, size); // 平滑，降噪
 
@@ -552,8 +552,8 @@ public class OpenCVUtils {
         Mat hierarchy = new Mat();
         Imgproc.findContours(binary, contourList, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
 
-        Map<Integer, Rect> xlist = new HashMap<>();
-        Map<Integer, Rect> ylist = new HashMap<>();
+        Map<Integer, Rect> xmap = new HashMap<>();
+        Map<Integer, Rect> ymap = new HashMap<>();
 
         int sourceWidth = address.width();
         int sourceHeight = address.height();
@@ -572,7 +572,7 @@ public class OpenCVUtils {
 
         for (MatOfPoint matOfPoint : contourList) {
             double area = Imgproc.contourArea(matOfPoint);
-            if (area < 200) {
+            if (area < 180) {
                 continue;
             }
 
@@ -582,38 +582,69 @@ public class OpenCVUtils {
                 continue;
             }
 
-            xlist.put(rect.x, rect);
-            ylist.put(rect.y, rect);
+            xmap.put(rect.x, rect);
+            ymap.put(rect.y, rect); // 可能会被覆盖
         }
 
 
-        int maxx = Collections.max(xlist.keySet());
-        int minx = Collections.min(xlist.keySet());
-        int maxy = Collections.max(ylist.keySet());
-        int miny = Collections.min(ylist.keySet());
+        List<Integer> xlist = new ArrayList<>(xmap.keySet());
+        List<Integer> ylist = new ArrayList<>(ymap.keySet());
+
+        Collections.sort(xlist);
+        Collections.sort(ylist);
+
+        int xsize = xlist.size();
+        int ysize = ylist.size();
+
+        int maxx = xlist.get(xsize - 1);
+        int minx = xlist.get(0);
+
+        int maxy = ylist.get(ysize - 1);
+        int miny = ylist.get(0);
 
         // 这样做，是要加上最大的切片的width和height
-        Rect rmaxx = xlist.get(maxx);
-        Rect rmaxy = ylist.get(maxy);
+        Rect rmaxx = xmap.get(maxx);
+        Rect rmaxy = ymap.get(maxy);
+
+        Rect rminx = xmap.get(minx);
+        Rect rminy = ymap.get(miny);
 
         // 因为第一个字可能只切割了一半，所以要，将他变成方形，增加不足的部分
-        Rect rminx = xlist.get(minx);
-        // Rect rminy = ylist.get(miny);
-        Rect rminy = xlist.get(maxx); // 单取一个可能不行，取两个比较以下，选择大的
+        // 单取一个可能不行，取两个比较以下，选择大的
 
         int minxWidth = rminx.width;
         int minxHeight = rminx.height;
         int minxAbs = Math.abs(minxWidth - minxHeight);
 
+        int maxxWidth = rmaxx.width;
+        int maxxHeight = rmaxx.height;
+
         int minyWidth = rminy.width;
         int minyHeight = rminy.height;
         int minyAbs = Math.abs(minyWidth - minyHeight);
 
+        int maxyWidth = rmaxy.width;
+        int maxyHeight = rmaxy.height;
+
         int abs = Math.max(minxAbs, minyAbs);
 
+        minx = minx - abs - 3;
 
-        int width = maxx - minx + Math.max(rmaxx.width, rmaxy.width) + abs;
-        int height = maxy - miny + Math.max(rmaxy.height, rmaxx.height);
+        if (minx <= 0) {
+            minx = 0;
+        }
+
+        miny -= 3;
+        if (miny <= 0) {
+            miny = 0;
+        }
+
+        int maxWidth = Math.max(rmaxx.width, rmaxy.width);
+//        int maxWidth = NumberUtils.max(minxWidth, minyWidth, maxxWidth, maxyWidth);
+        //maxWidth = (int) (maxWidth * 1.5);
+
+        int width = maxx - minx + maxWidth + abs;
+        int height = maxy - miny + Math.max(rmaxy.height, rmaxx.height) + 3;
 
         // 防止宽度溢出
         if (minx + width > sourceWidth) {
@@ -622,16 +653,6 @@ public class OpenCVUtils {
         // 防止高度溢出
         if (miny + height> sourceHeight) {
             height = sourceHeight - miny;
-        }
-
-        minx = minx - abs;
-
-        if (minx <= 0) {
-            minx = 1;
-        }
-
-        if (miny <= 0) {
-            miny = 1;
         }
 
         Rect re = new Rect(minx , miny, width, height);
@@ -666,7 +687,7 @@ public class OpenCVUtils {
 //
 //        toBytes(mat, ".jpg");
 
-        Mat mat = Imgcodecs.imread("/home/yinlei/Sample/wuwei.jpg");
+        Mat mat = Imgcodecs.imread("/home/yinlei/Sample/qirenwen.jpg");
 
         mat = resize(mat, 1000D); // 要统一归一化，否则，后面不好处理
 
