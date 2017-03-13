@@ -1,6 +1,8 @@
 package com.vteba.opencv;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 常用的统计方法
@@ -176,5 +178,17 @@ public class MathUtils {
         System.out.println(is);
     }
 
+    private static final Pattern PATTERN = Pattern.compile("\\s");
 
+    public static String trim(String text) {
+        if (text == null) {
+            return null;
+        }
+        return text.replaceAll("\\s", "");
+//        Matcher matcher = PATTERN.matcher(text);
+//        if (matcher.matches()) {
+//            return matcher.replaceAll("");
+//        }
+//        return text;
+    }
 }

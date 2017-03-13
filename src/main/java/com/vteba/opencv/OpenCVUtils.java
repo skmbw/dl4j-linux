@@ -1,5 +1,8 @@
 package com.vteba.opencv;
 
+import net.sourceforge.tess4j.ITesseract;
+import net.sourceforge.tess4j.Tesseract;
+import net.sourceforge.tess4j.TesseractException;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
@@ -696,20 +699,83 @@ public class OpenCVUtils {
         Mat codeMat = map.get("code");
 
         Mat newCode = codeContour(codeMat);
-
+        codeRecognize(newCode);
         Imgcodecs.imwrite("/tmp/aa_code.png", newCode);
 
         Mat nameMat = map.get("name");
         Mat newName = nameContour(nameMat);
-
+        textRecognize(newName, 1);
         Imgcodecs.imwrite("/tmp/aa_name.png", newName);
 
         Mat nationMat = map.get("nation");
         Mat newNation = nationContour(nationMat);
+        textRecognize(newNation, 2);
         Imgcodecs.imwrite("/tmp/aa_nation.png", newNation);
 
         Mat addressMat = map.get("address");
         Mat newAddress = addressContour(addressMat);
+        textRecognize(newAddress, 3);
         Imgcodecs.imwrite("/tmp/aa_address.png", newAddress);
+    }
+
+    public static void textRecognize(Mat image, int type) {
+        ITesseract instance = new Tesseract();
+
+        instance.setLanguage("shz13");
+        // shz11是由地址训练的汉字，图片被缩放。
+        // shz9也是数字的，168张身份证号码，图片被缩放。
+        // shz10也是数字的，168张身份证号码，图片无缩放。
+        // shz12是身份证号码，纯数字的，原始图，精简的40多张。（OK）
+        // shz13是地址训练的汉字，230多张原始图片（OK）
+        // shz14室shz13加我同学给做的5张图训练的汉字，字库更大
+        List<String> configs = new ArrayList<>();
+//        configs.add("digits");
+        instance.setConfigs(configs);
+        instance.setDatapath("/usr/local/tesseract-3.04.01/tessdata/");
+
+        MatImageUtils matImage = new MatImageUtils(image, ".png");
+
+        try {
+            String result = instance.doOCR(matImage.getImage());
+            result = MathUtils.trim(result);
+            String prefix = "";
+            if (type == 1) {
+                prefix = "姓名：";
+            } else if (type == 2) {
+                prefix = "民族：";
+            } else if (type == 3) {
+                prefix = "地址：";
+            }
+            System.out.println(prefix + result);
+        } catch (TesseractException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
+    public static void codeRecognize(Mat image) {
+        ITesseract instance = new Tesseract();
+        instance.setLanguage("shz12");
+        // shz11是由地址训练的汉字，图片被缩放。
+        // shz9也是数字的，168张身份证号码，图片被缩放。
+        // shz10也是数字的，168张身份证号码，图片无缩放。
+        // shz12是身份证号码，纯数字的，原始图，精简的40多张。（OK）
+        // shz13是地址训练的汉字，230多张原始图片（OK）
+        // shz14室shz13加我同学给做的5张图训练的汉字，字库更大
+        List<String> configs = new ArrayList<>();
+        configs.add("digits");
+        instance.setConfigs(configs);
+        instance.setDatapath("/usr/local/tesseract-3.04.01/tessdata/");
+
+        MatImageUtils matImage = new MatImageUtils(image, ".png");
+
+        try {
+            String result = instance.doOCR(matImage.getImage());
+            result = MathUtils.trim(result);
+            System.out.println("身份证号码：" + result);
+        } catch (TesseractException e) {
+            e.printStackTrace();
+        }
     }
 }
