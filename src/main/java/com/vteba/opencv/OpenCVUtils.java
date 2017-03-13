@@ -1,9 +1,12 @@
 package com.vteba.opencv;
 
+import net.sourceforge.tess4j.ITessAPI;
 import net.sourceforge.tess4j.ITesseract;
 import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -15,6 +18,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
@@ -225,7 +229,7 @@ public class OpenCVUtils {
 
         int areas = sourceWidth * sourceHeight;
 
-        LOGGER.info("code height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, areas);
+        //LOGGER.info("code height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, areas);
 
 //        int limit = 100;
 //        if (areas >= 300000) {
@@ -324,7 +328,7 @@ public class OpenCVUtils {
 //            limit = 150;
 //        }
 
-        LOGGER.info("name height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, areas);
+        //LOGGER.info("name height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, areas);
 
         int i = 1;
         for (MatOfPoint matOfPoint : contourList) {
@@ -492,7 +496,7 @@ public class OpenCVUtils {
 
         int abs = Math.max(minxAbs, minyAbs);
 
-        LOGGER.info("nation height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, sourceHeight * sourceWidth);
+        //LOGGER.info("nation height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, sourceHeight * sourceWidth);
 
         int width = maxx - minx + Math.max(rmaxx.width, rmaxy.width) + abs;
 
@@ -571,7 +575,7 @@ public class OpenCVUtils {
 //            limit = 150;
 //        }
 
-        LOGGER.info("address height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, areas);
+        //LOGGER.info("address height=[{}], width=[{}], area=[{}]", sourceHeight, sourceWidth, areas);
 
         for (MatOfPoint matOfPoint : contourList) {
             double area = Imgproc.contourArea(matOfPoint);
@@ -690,7 +694,7 @@ public class OpenCVUtils {
 //
 //        toBytes(mat, ".jpg");
 
-        Mat mat = Imgcodecs.imread("/home/yinlei/Sample/qirenwen.jpg");
+        Mat mat = Imgcodecs.imread("/home/yinlei/Sample/hx.jpg");
 
         mat = resize(mat, 1000D); // 要统一归一化，否则，后面不好处理
 
@@ -720,6 +724,18 @@ public class OpenCVUtils {
 
     public static void textRecognize(Mat image, int type) {
         ITesseract instance = new Tesseract();
+        String prefix = "";
+        if (type == 1) {
+            prefix = "姓名：";
+            instance.setPageSegMode(ITessAPI.TessPageSegMode.PSM_SINGLE_LINE); // 单独一行
+        } else if (type == 2) {
+            instance.setPageSegMode(ITessAPI.TessPageSegMode.PSM_SINGLE_LINE);
+            prefix = "民族：";
+        } else if (type == 3) {
+            instance.setPageSegMode(ITessAPI.TessPageSegMode.PSM_AUTO);
+            prefix = "地址：";
+        }
+        //instance.setOcrEngineMode(ITessAPI.TessOcrEngineMode.OEM_CUBE_ONLY);
 
         instance.setLanguage("shz13");
         // shz11是由地址训练的汉字，图片被缩放。
@@ -731,6 +747,7 @@ public class OpenCVUtils {
         List<String> configs = new ArrayList<>();
 //        configs.add("digits");
         instance.setConfigs(configs);
+
         instance.setDatapath("/usr/local/tesseract-3.04.01/tessdata/");
 
         MatImageUtils matImage = new MatImageUtils(image, ".png");
@@ -738,14 +755,7 @@ public class OpenCVUtils {
         try {
             String result = instance.doOCR(matImage.getImage());
             result = MathUtils.trim(result);
-            String prefix = "";
-            if (type == 1) {
-                prefix = "姓名：";
-            } else if (type == 2) {
-                prefix = "民族：";
-            } else if (type == 3) {
-                prefix = "地址：";
-            }
+
             System.out.println(prefix + result);
         } catch (TesseractException e) {
             e.printStackTrace();
@@ -757,6 +767,7 @@ public class OpenCVUtils {
     public static void codeRecognize(Mat image) {
         ITesseract instance = new Tesseract();
         instance.setLanguage("shz12");
+        instance.setPageSegMode(ITessAPI.TessPageSegMode.PSM_SINGLE_LINE); // 单独一行
         // shz11是由地址训练的汉字，图片被缩放。
         // shz9也是数字的，168张身份证号码，图片被缩放。
         // shz10也是数字的，168张身份证号码，图片无缩放。
@@ -772,7 +783,56 @@ public class OpenCVUtils {
 
         try {
             String result = instance.doOCR(matImage.getImage());
+            if (StringUtils.isBlank(result)) {
+                LOGGER.error("未检测到身份证号码数据。");
+                return;
+            }
             result = MathUtils.trim(result);
+            int len = result.length();
+            if (len != 15 && len != 18) {
+                LOGGER.error("身份证代码长度识别错误code=[{}]", result);
+            } else {
+                if (len == 18) {
+                    String birthday = result.substring(6, 14);
+                    try {
+                        SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");
+                        Date date = format.parse(birthday);
+                        LOGGER.info("出生年月：[{}]", format.format(date));
+                    } catch (Exception e) {
+                        LOGGER.error("格式化18生日错误[{}]", birthday);
+                    }
+                    String g = result.substring(16, 17);
+                    int i = Integer.parseInt(g);
+                    String gender = "";
+                    if (i % 2 == 0) {
+                        gender = "女";
+                    } else if (i % 2 == 1) {
+                        gender = "男";
+                    }
+                    LOGGER.info("性别：[{}]", gender);
+                } else if (len == 15) {
+                    String birthday = result.substring(6, 12);
+                    try {
+                        SimpleDateFormat format = new SimpleDateFormat("yyMMdd");
+                        Date date = format.parse(birthday);
+                        SimpleDateFormat format2 = new SimpleDateFormat("yyyyMMdd");
+                        LOGGER.info("出生年月：[{}]", format2.format(date));
+                    } catch (Exception e) {
+                        LOGGER.error("格式化15生日错误[{}]", birthday);
+                    }
+                    String g = result.substring(14, 15);
+                    int i = Integer.parseInt(g);
+                    String gender = "";
+                    if (i % 2 == 0) {
+                        gender = "女";
+                    } else if (i % 2 == 1) {
+                        gender = "男";
+                    }
+                    LOGGER.info("性别：[{}]", gender);
+                }
+
+            }
+
             System.out.println("身份证号码：" + result);
         } catch (TesseractException e) {
             e.printStackTrace();
