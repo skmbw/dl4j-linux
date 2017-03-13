@@ -756,7 +756,7 @@ public class OpenCVUtils {
             String result = instance.doOCR(matImage.getImage());
             result = MathUtils.trim(result);
 
-            System.out.println(prefix + result);
+            LOGGER.info(prefix + result);
         } catch (TesseractException e) {
             e.printStackTrace();
         }
@@ -788,6 +788,7 @@ public class OpenCVUtils {
                 return;
             }
             result = MathUtils.trim(result);
+            LOGGER.info("身份证号码：" + result);
             int len = result.length();
             if (len != 15 && len != 18) {
                 LOGGER.error("身份证代码长度识别错误code=[{}]", result);
@@ -833,7 +834,6 @@ public class OpenCVUtils {
 
             }
 
-            System.out.println("身份证号码：" + result);
         } catch (TesseractException e) {
             e.printStackTrace();
         }
