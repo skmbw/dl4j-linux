@@ -1,12 +1,13 @@
 package com.vteba.opencv;
 
+import com.alibaba.fastjson.JSON;
 import net.sourceforge.tess4j.ITessAPI;
 import net.sourceforge.tess4j.ITesseract;
 import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
-import org.apache.commons.lang3.time.DateUtils;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -16,12 +17,13 @@ import org.slf4j.LoggerFactory;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.function.ToIntFunction;
 
 /**
  * opencv图像处理相关的工具类
@@ -33,8 +35,28 @@ public class OpenCVUtils {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenCVUtils.class);
 
+    public static final Map<String, String> ADDRESS = new HashMap<>();
+
     static {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+
+        try {
+            File pathFile = new File("");
+            String path = pathFile.getAbsolutePath();
+            File file = new File(path + "/src/main/resources/JSON.txt");
+//            System.out.println(file.getAbsolutePath());
+//            System.out.println(file.getPath());
+
+            FileInputStream fis = new FileInputStream(file);
+            String json = IOUtils.toString(fis, Charset.forName("UTF-8"));
+            Map<String, Object> ob = JSON.parseObject(json);
+            for (Map.Entry<String, Object> entry : ob.entrySet()) {
+                ADDRESS.put(entry.getKey(), entry.getValue().toString());
+            }
+            System.out.println();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -703,7 +725,7 @@ public class OpenCVUtils {
         Mat codeMat = map.get("code");
 
         Mat newCode = codeContour(codeMat);
-        codeRecognize(newCode);
+        String code = codeRecognize(newCode);
         Imgcodecs.imwrite("/tmp/aa_code.png", newCode);
 
         Mat nameMat = map.get("name");
@@ -718,11 +740,97 @@ public class OpenCVUtils {
 
         Mat addressMat = map.get("address");
         Mat newAddress = addressContour(addressMat);
-        textRecognize(newAddress, 3);
+        String address = textRecognize(newAddress, 3);
         Imgcodecs.imwrite("/tmp/aa_address.png", newAddress);
+
+        postProcess(code, address);
     }
 
-    public static void textRecognize(Mat image, int type) {
+    /**
+     * 根据身份证去校正地址
+     * @param code 身份证
+     * @param address 地址
+     */
+    public static String postProcess(String code, String address) {
+        if (StringUtils.isBlank(code) || StringUtils.isBlank(address)) {
+            return address; // 不做处理，直接返回原来的地址
+        }
+        if (code.length() < 6 || address.length() < 9) {
+            return address;
+        }
+
+        String targetAddress = "";
+        int type = 0;
+
+        String province = code.substring(0, 2);
+        String provinceName = ADDRESS.get(province + "0000");
+        if (StringUtils.isBlank(provinceName)) {
+            return address;
+        } else {
+            targetAddress += provinceName;
+            type = 1;
+        }
+
+        String city = code.substring(0, 4);
+        String cityName = ADDRESS.get(city + "00");
+
+        if (StringUtils.isBlank(cityName)) { // 可能为空，中山市
+
+        } else {
+            targetAddress += cityName;
+            type = 2;
+        }
+
+        String county = code.substring(0, 6);
+        String countyName = ADDRESS.get(county);
+        if (StringUtils.isBlank(countyName)) {
+            // 比较省市
+
+        } else {
+            if (cityName.endsWith("市")) { // 县级市，地址中一般不会再包含地级代管市
+                targetAddress = provinceName + countyName;
+                type = 4;
+            } else {
+                targetAddress += countyName;
+                type = 3;
+            }
+        }
+
+        String uncheckedAddress;
+        if (type == 1) {
+            uncheckedAddress = address.substring(0, 3);
+        } else if (type == 2) {
+            uncheckedAddress = address.substring(0, 6);
+        } else if (type == 3) {
+            uncheckedAddress = address.substring(0, 9);
+        } else if (type == 4) {
+            uncheckedAddress = address.substring(0, 6);
+        } else {
+            return address; // 不会出现 never occur
+        }
+
+
+        int similarDegree = SimilarTest.editDistance(uncheckedAddress, targetAddress);
+        System.out.println(similarDegree);
+        if (similarDegree <= 3) {
+            String suffix = "";
+            if (type == 1) {
+                suffix = address.substring(3);
+            } else if (type == 2 || type == 4) {
+                suffix = address.substring(6);
+            } else if (type == 3) {
+                suffix = address.substring(9);
+            }
+            String checkedAddress = targetAddress + suffix;
+            LOGGER.info("校验后地址：{}", checkedAddress);
+            return checkedAddress;
+        } else {
+            return address; // 相似度底，还是返回原来的地址
+        }
+
+    }
+
+    public static String textRecognize(Mat image, int type) {
         ITesseract instance = new Tesseract();
         String prefix = "";
         if (type == 1) {
@@ -757,14 +865,16 @@ public class OpenCVUtils {
             result = MathUtils.trim(result);
 
             LOGGER.info(prefix + result);
+            return result;
         } catch (TesseractException e) {
             e.printStackTrace();
         }
+        return null;
     }
 
 
 
-    public static void codeRecognize(Mat image) {
+    public static String codeRecognize(Mat image) {
         ITesseract instance = new Tesseract();
         instance.setLanguage("shz12");
         instance.setPageSegMode(ITessAPI.TessPageSegMode.PSM_SINGLE_LINE); // 单独一行
@@ -785,7 +895,7 @@ public class OpenCVUtils {
             String result = instance.doOCR(matImage.getImage());
             if (StringUtils.isBlank(result)) {
                 LOGGER.error("未检测到身份证号码数据。");
-                return;
+                return null;
             }
             result = MathUtils.trim(result);
             LOGGER.info("身份证号码：" + result);
@@ -833,9 +943,10 @@ public class OpenCVUtils {
                 }
 
             }
-
+            return result; // 很多都应该返回的，先把身份证返回吧
         } catch (TesseractException e) {
             e.printStackTrace();
         }
+        return null;
     }
 }

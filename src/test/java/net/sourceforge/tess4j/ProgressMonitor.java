@@ -40,7 +40,7 @@ class ProgressMonitor extends Thread {
     @Override
     public void run() {
         try {
-            while (true) {
+            while (true) { // 注释
                 logger.info("ocr alive: " + (monitor.ocr_alive == TRUE));
                 logger.info("progress: " + monitor.progress);
                 outputMessage.append(monitor.more_to_come);
