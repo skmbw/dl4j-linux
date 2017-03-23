@@ -37,6 +37,8 @@ public class OpenCVUtils {
 
     public static final Map<String, String> ADDRESS = new HashMap<>();
 
+    public static final Map<String, Integer> PROVINCE = new HashMap<>();
+
     static {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
@@ -57,6 +59,43 @@ public class OpenCVUtils {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        PROVINCE.put("安徽", 1);
+        PROVINCE.put("上海", 1);
+        PROVINCE.put("浙江", 1);
+        PROVINCE.put("江苏", 1);
+        PROVINCE.put("山东", 1);
+        PROVINCE.put("江西", 1);
+        PROVINCE.put("福建", 1);
+        PROVINCE.put("辽宁", 1);
+        PROVINCE.put("黑龙江", 1);
+        PROVINCE.put("吉林", 1);
+        PROVINCE.put("河北", 1);
+        PROVINCE.put("北京", 1);
+        PROVINCE.put("天津", 1);
+        PROVINCE.put("内蒙古", 1);
+        PROVINCE.put("山西", 1);
+        PROVINCE.put("陕西", 1);
+        PROVINCE.put("宁夏", 1);
+        PROVINCE.put("甘肃", 1);
+        PROVINCE.put("新疆", 1);
+        PROVINCE.put("西藏", 1);
+        PROVINCE.put("青海", 1);
+        PROVINCE.put("贵州", 1);
+        PROVINCE.put("四川", 1);
+        PROVINCE.put("重庆", 1);
+        PROVINCE.put("云南", 1);
+        PROVINCE.put("湖北", 1);
+        PROVINCE.put("湖南", 1);
+        PROVINCE.put("河南", 1);
+        PROVINCE.put("广东", 1);
+        PROVINCE.put("广西", 1);
+        PROVINCE.put("海南", 1);
+        PROVINCE.put("香港", 1);
+        PROVINCE.put("澳门", 1);
+        PROVINCE.put("台湾", 1);
+
+
     }
 
     /**
@@ -716,7 +755,7 @@ public class OpenCVUtils {
 //
 //        toBytes(mat, ".jpg");
 
-        Mat mat = Imgcodecs.imread("/home/yinlei/Sample/hx.jpg");
+        Mat mat = Imgcodecs.imread("/home/yinlei/idcard2/id46.jpg");
 
         mat = resize(mat, 1000D); // 要统一归一化，否则，后面不好处理
 
@@ -770,6 +809,17 @@ public class OpenCVUtils {
             targetAddress += provinceName;
             type = 1;
         }
+        String actualProvince = address.substring(0, 2);
+
+        Integer exist = PROVINCE.get(actualProvince);
+        if (exist != null && exist == 1) {
+            String pn = provinceName.substring(0, 2);
+            if (!pn.equals(actualProvince)) { // 身份证号码的省份和实际不符合，是迁户口的，按实际的来
+                String result = actualProvince + "省" + address.substring(3); // 也可能不带省字，这个可以根据34个省挨个判断
+                LOGGER.info("校验后地址：{}", result);
+                return result;
+            }
+        }
 
         String city = code.substring(0, 4);
         String cityName = ADDRESS.get(city + "00");
@@ -787,7 +837,7 @@ public class OpenCVUtils {
             // 比较省市
 
         } else {
-            if (cityName.endsWith("市")) { // 县级市，地址中一般不会再包含地级代管市
+            if (countyName.endsWith("市") && cityName.endsWith("市")) { // 县级市，地址中一般不会再包含地级代管市
                 targetAddress = provinceName + countyName;
                 type = 4;
             } else {
@@ -796,38 +846,63 @@ public class OpenCVUtils {
             }
         }
 
-        String uncheckedAddress;
-        if (type == 1) {
-            uncheckedAddress = address.substring(0, 3);
-        } else if (type == 2) {
-            uncheckedAddress = address.substring(0, 6);
-        } else if (type == 3) {
-            uncheckedAddress = address.substring(0, 9);
-        } else if (type == 4) {
-            uncheckedAddress = address.substring(0, 6);
-        } else {
-            return address; // 不会出现 never occur
-        }
+
+        int len = targetAddress.length();
+        String uncheckedAddress = address.substring(0, len); // 直接按查找到的进行校验
 
 
-        int similarDegree = SimilarTest.editDistance(uncheckedAddress, targetAddress);
-        System.out.println(similarDegree);
-        if (similarDegree <= 3) {
-            String suffix = "";
-            if (type == 1) {
-                suffix = address.substring(3);
-            } else if (type == 2 || type == 4) {
-                suffix = address.substring(6);
-            } else if (type == 3) {
-                suffix = address.substring(9);
-            }
+//        if (type == 1) {
+//            uncheckedAddress = address.substring(0, 3);
+//        } else if (type == 2) {
+//            uncheckedAddress = address.substring(0, 6);
+//        } else if (type == 3) {
+//            uncheckedAddress = address.substring(0, 9);
+//        } else if (type == 4) {
+//            uncheckedAddress = address.substring(0, 6);
+//        } else {
+//            return address; // 不会出现 never occur
+//        }
+
+
+        double errorRate = similar(uncheckedAddress, targetAddress, len);
+        System.out.println(errorRate);
+
+        if (errorRate < 0.5) {
+            String suffix = address.substring(len);
+//            if (type == 1) {
+//                suffix = address.substring(3);
+//            } else if (type == 2 || type == 4) {
+//                suffix = address.substring(6);
+//            } else if (type == 3) {
+//                suffix = address.substring(9);
+//            }
             String checkedAddress = targetAddress + suffix;
-            LOGGER.info("校验后地址：{}", checkedAddress);
+            LOGGER.info("校验后地址1：{}", checkedAddress);
             return checkedAddress;
+        } else if (errorRate > 0.6) {
+            // 把市去掉，再次尝试一下，因为有的地址，市是省略的
+            targetAddress = provinceName + countyName;
+            len = targetAddress.length();
+            uncheckedAddress = address.substring(0, len);
+            errorRate = similar(uncheckedAddress, targetAddress, len);
+            if (errorRate <= 0.34) {
+                String suffix = address.substring(len);
+                String checkedAddress = targetAddress + suffix;
+                LOGGER.info("校验后地址2：{}", checkedAddress);
+                return checkedAddress;
+            } else {
+                return address;
+            }
         } else {
             return address; // 相似度底，还是返回原来的地址
         }
 
+    }
+
+    public static double similar(String source, String target, int len) {
+        int similarDegree = SimilarTest.editDistance(source, target);
+        double errorRate = similarDegree * 1.0 / len; // 根据字符长度来判断错误率
+        return errorRate;
     }
 
     public static String textRecognize(Mat image, int type) {
@@ -845,7 +920,7 @@ public class OpenCVUtils {
         }
         //instance.setOcrEngineMode(ITessAPI.TessOcrEngineMode.OEM_CUBE_ONLY);
 
-        instance.setLanguage("shz13");
+        instance.setLanguage("shz19");
         // shz11是由地址训练的汉字，图片被缩放。
         // shz9也是数字的，168张身份证号码，图片被缩放。
         // shz10也是数字的，168张身份证号码，图片无缩放。
