@@ -3,7 +3,6 @@ package com.vteba.opencv;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
-import sun.nio.cs.ext.MacThai;
 
 import java.util.*;
 
@@ -258,7 +257,7 @@ public class FindContoursTest {
 
 //        Imgcodecs.imwrite("/tmp/contour.png", yl03);
 
-        //testContours();
+        testContours();
     }
 
     public static void testContours() {

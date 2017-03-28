@@ -783,6 +783,247 @@ public class OpenCVUtils {
         Imgcodecs.imwrite("/tmp/aa_address.png", newAddress);
 
         postProcess(code, address);
+
+        splitBinaryAddress(newAddress);
+    }
+
+    public static void splitBinaryAddress(Mat addressMat) {
+        Mat blur = new Mat();
+        Imgproc.blur(addressMat, blur, new Size(3, 3));
+
+        Mat gray = new Mat();
+        Imgproc.cvtColor(blur, gray, Imgproc.COLOR_RGB2GRAY); // 灰度图
+
+        Mat binary = new Mat();
+        Imgproc.adaptiveThreshold(gray, binary, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY_INV, 25, 10);
+        Imgcodecs.imwrite("/tmp/address_binary.png", binary);
+
+        projection(binary);
+
+        List<MatOfPoint> contourList = new ArrayList<>();
+
+        Mat newAddr = new Mat();
+        Mat erodeMat = new Mat();
+        binary.copyTo(newAddr);
+        binary.copyTo(erodeMat);
+
+        Mat dilateKernel = Imgproc.getStructuringElement(Imgproc.MORPH_DILATE, new Size(2, 2));
+        // peng zhuang
+        Mat dilated = new Mat();
+        Imgproc.dilate(newAddr, dilated, dilateKernel);
+        Imgcodecs.imwrite("/tmp/dilated_address.png", dilated);
+
+        // fu shi
+        Mat erodeKernel = Imgproc.getStructuringElement(Imgproc.MORPH_ERODE, new Size(4, 4));
+        Mat eroded = new Mat();
+        Imgproc.erode(erodeMat, eroded, erodeKernel, new Point(-1, -1), 2);
+
+
+        Imgcodecs.imwrite("/tmp/dilated_eroded_address.png", dilated);
+
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(newAddr, contourList, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        int i = 1;
+        for (MatOfPoint contour : contourList) {
+            double area = Imgproc.contourArea(contour);
+            if (area < 100) {
+                continue;
+            }
+            Rect rect = Imgproc.boundingRect(contour);
+
+            Mat mat = new Mat(binary, rect);
+            Imgcodecs.imwrite("/tmp/cc" + i++ + ".png", mat);
+        }
+
+        List<Mat> images = new ArrayList<>();
+        Mat dst = new Mat();
+        binary.copyTo(dst);
+        images.add(dst);
+        MatOfInt channels = new MatOfInt(0);
+
+        Mat hist = new Mat();
+        MatOfInt histSize = new MatOfInt(256);
+        MatOfFloat ranges = new MatOfFloat(0, 255F);
+
+        Mat mask = new Mat();
+
+        Imgproc.calcHist(images, channels, mask, hist, histSize, ranges, false);
+
+        int width = hist.cols(); // 1
+        int height = hist.rows();
+
+        for (int j = 0; j < height; j++) {
+
+            for (int k = 0; k < width; k++) {
+//                Mat col = hist.col(k);
+//                int h = col.height();
+//                for (int l = 0; l < h; l++) {
+//                    double[] dd = col.get(l, k);
+//                    System.out.println(Arrays.toString(dd));
+//                }
+                double[] piex = hist.get(j,k);
+//                System.out.println(piex.length + " : " + piex[0]);
+            }
+        }
+
+        Imgcodecs.imwrite("/tmp/address_binary_hist.png", hist);
+    }
+
+    public static void projection(Mat binary) {
+
+        //binary = Imgcodecs.imread("/tmp/aa_nation.png");
+
+        int cols = binary.cols();
+        int rows = binary.rows();
+
+        double[] calcHistRows = new double[rows];
+
+        for (int i = 0; i < rows; i++) {
+            Mat row = binary.row(i);
+
+            double colval = 0;
+            for (int j = 0; j < cols; j++) {
+                double[] vals = row.get(0, j); // the row is 0, because the image is one channel image, is rgb image, vals's size is 3
+                if (vals == null) {
+                    System.out.println("row=[" + i + "], col=[" + j + "]");
+                    continue;
+                }
+                colval += vals[0];
+            }
+            calcHistRows[i] = colval;
+        }
+        System.out.println(calcHistRows);
+
+        int maxRowNunber = rows / 3;
+
+        Map<String, Integer> pointMap = new HashMap<>();
+        pointMap.put("first", -1);
+        pointMap.put("second", -1);
+        pointMap.put("third", -1);
+
+//        int index = 0;
+        int span = 0;
+        // 迭代3次最好了，分别处理三个行坐标
+        for (int j = 0; j < rows; j++) {
+            if (calcHistRows[j] == 0D) {
+                int firstX = pointMap.get("first");
+                if (firstX != -1) { // 第一个点出现过
+                    int diff = j - span;
+                    if (diff < maxRowNunber) { // 小于最小行数，用第二个0点替换第一个0点
+                        pointMap.put("first", j);
+                        span = j;
+                        continue; // 现在在处理第一个点，可以直接下一次循环
+                    } else {
+                        pointMap.put("firstEnd", j);
+                        span = j;
+                        break;
+                    }
+                } else { // 第一个点还没有出现
+                    pointMap.put("first", j);
+                    span = j;
+                    continue;
+                }
+
+
+
+            }
+
+//            index++;
+        }
+
+//        index = 0;
+//        span = 0;
+
+        LOGGER.info("span={}", span);
+
+        // 迭代3次最好了，分别处理三个行坐标
+        for (int j = span; j < rows; j++) {
+            if (calcHistRows[j] == 0D) {
+                int firstX = pointMap.get("second");
+                if (firstX != -1) { // 第一个点出现过
+                    int diff = j - span;
+                    if (diff < maxRowNunber) { // 小于最小行数，用第二个0点替换第一个0点
+                        pointMap.put("second", j);
+                        span = j;
+                        continue; // 现在在处理第一个点，可以直接下一次循环
+                    } else {
+                        pointMap.put("secondEnd", j);
+                        span = j;
+                        break;
+                    }
+                } else { // 第一个点还没有出现
+                    pointMap.put("second", j);
+                    span = j;
+                    continue;
+                }
+
+
+
+            }
+
+//            index++;
+        }
+
+//        index = 0;
+//        span = 0;
+        LOGGER.info("span={}", span);
+        // 迭代3次最好了，分别处理三个行坐标
+        if (rows - span >= maxRowNunber) {
+            for (int j = span; j < rows; j++) {
+                if (calcHistRows[j] == 0D) {
+                    int firstX = pointMap.get("third");
+                    if (firstX != -1) { // 第一个点出现过
+                        int diff = j - span;
+                        if (diff < maxRowNunber) { // 小于最小行数，用第二个0点替换第一个0点
+                            pointMap.put("third", j);
+                            span = j;
+                            continue; // 现在在处理第一个点，可以直接下一次循环
+                        } else {
+                            pointMap.put("thirdEnd", j);
+//                            span = j;
+                            break;
+                        }
+                    } else { // 第一个点还没有出现
+                        pointMap.put("third", j);
+                        span = j;
+                        continue;
+                    }
+
+
+
+                }
+
+//                index++;
+            }
+        }
+
+
+        int y1 = pointMap.get("first");
+        int h1 = pointMap.get("firstEnd");
+        Rect rowRect = new Rect(0, y1, cols, h1 - y1);
+        Mat fmat = new Mat(binary, rowRect);
+        Imgcodecs.imwrite("/tmp/hist_1.png", fmat);
+
+
+        Integer y2 = pointMap.get("second");
+        if (y2 != null && y2 != -1) {
+            Integer h2 = pointMap.get("secondEnd");
+            Rect rowRect2 = new Rect(0, y2, cols, h2 - y2 + 7);
+            Mat smat = new Mat(binary, rowRect2);
+            Imgcodecs.imwrite("/tmp/hist_2.png", smat);
+        }
+
+
+        Integer y3 = pointMap.get("third");
+        if (y3 != null && y3 != -1) {
+            Integer h3 = pointMap.get("thirdEnd");
+            Rect rowRect3 = new Rect(0, y3, cols, h3 - y3);
+            Mat smat = new Mat(binary, rowRect3);
+            Imgcodecs.imwrite("/tmp/hist_3.png", smat);
+        }
+
+        System.out.println(pointMap);
     }
 
     /**
@@ -920,7 +1161,7 @@ public class OpenCVUtils {
         }
         //instance.setOcrEngineMode(ITessAPI.TessOcrEngineMode.OEM_CUBE_ONLY);
 
-        instance.setLanguage("shz19");
+        instance.setLanguage("shz13");
         // shz11是由地址训练的汉字，图片被缩放。
         // shz9也是数字的，168张身份证号码，图片被缩放。
         // shz10也是数字的，168张身份证号码，图片无缩放。
