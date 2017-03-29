@@ -1136,7 +1136,7 @@ public class OpenCVUtils {
     }
 
     /**
-     * 组和map中的key，懒得去排序了
+     * 组和map中的key，懒得去排序了，最大99个字符
      * @param index 序号
      * @param start 是否是开始
      * @return key string
@@ -1170,6 +1170,8 @@ public class OpenCVUtils {
             // 可能的列数，但是对于数字1，是一个问题。这个数字可以设置一个很小的经验值，比如10（这样会保留噪音），但是，可以对这个切割下来的字符
             // 再做一次水平方向的投影，一般可以去掉这个噪音
             int colNumber = 10; // colLimit / 14 - 1;
+            int theoryMaxCol = colLimit / 14;
+            int theoryMinCol = colLimit / 26;
             SortedMap<String, Integer> pointMap = new TreeMap<>();
 
             sliceCols(colHists, 0, 11, colLimit, colNumber, pointMap);
@@ -1189,7 +1191,11 @@ public class OpenCVUtils {
                         continue;
                     }
                     Integer x = entry.getValue();
-                    Rect rect = new Rect(x, 0, x2 - x, height);
+                    int width = x2 - x;
+                    if (theoryMinCol < width && width <= theoryMaxCol) {
+                        width = theoryMaxCol;
+                    }
+                    Rect rect = new Rect(x, 0, width, height);
                     Mat cell = new Mat(row, rect);
                     charMatList.add(cell);
                 } else {
