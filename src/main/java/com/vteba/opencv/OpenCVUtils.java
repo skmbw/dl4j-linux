@@ -798,7 +798,16 @@ public class OpenCVUtils {
         Imgproc.adaptiveThreshold(gray, binary, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY_INV, 25, 10);
         Imgcodecs.imwrite("/tmp/address_binary.png", binary);
 
-        projection(binary);
+        List<Mat> rowMatList = sliceRows(binary); // 按行切割图片
+        Map<Integer, List<Mat>> charListMap = splitChar(rowMatList);
+        int row = charListMap.size();
+        for (int i = 1; i <= row; i++) {
+            List<Mat> charList = charListMap.get(i);
+            int j = 1;
+            for (Mat charMat : charList) {
+                Imgcodecs.imwrite("/tmp/" + i + j++ + ".png", charMat);
+            }
+        }
 
         List<MatOfPoint> contourList = new ArrayList<>();
 
@@ -832,8 +841,8 @@ public class OpenCVUtils {
             }
             Rect rect = Imgproc.boundingRect(contour);
 
-            Mat mat = new Mat(binary, rect);
-            Imgcodecs.imwrite("/tmp/cc" + i++ + ".png", mat);
+//            Mat mat = new Mat(binary, rect);
+//            Imgcodecs.imwrite("/tmp/cc" + i++ + ".png", mat);
         }
 
         List<Mat> images = new ArrayList<>();
@@ -862,7 +871,7 @@ public class OpenCVUtils {
 //                    double[] dd = col.get(l, k);
 //                    System.out.println(Arrays.toString(dd));
 //                }
-                double[] piex = hist.get(j,k);
+                double[] piex = hist.get(0,k);
 //                System.out.println(piex.length + " : " + piex[0]);
             }
         }
@@ -870,30 +879,84 @@ public class OpenCVUtils {
         Imgcodecs.imwrite("/tmp/address_binary_hist.png", hist);
     }
 
-    public static void projection(Mat binary) {
-
-        //binary = Imgcodecs.imread("/tmp/aa_nation.png");
-
-        int cols = binary.cols();
-        int rows = binary.rows();
+    /**
+     * 统计灰度图的直方图
+     * @param binary 图片
+     * @param vertical 是否垂直方向（按列）统计，false（按行统计）
+     * @return 直方图数组
+     */
+    public static double[] projection(Mat binary, boolean vertical) {
+        int cols;
+        int rows;
+        if (vertical) {
+            cols = binary.rows();
+            rows = binary.cols();
+        } else {
+            cols = binary.cols();
+            rows = binary.rows();
+        }
 
         double[] calcHistRows = new double[rows];
 
         for (int i = 0; i < rows; i++) {
-            Mat row = binary.row(i);
+            Mat cell;
+            if (vertical) {
+                cell = binary.col(i);
+            } else {
+                cell = binary.row(i);
+            }
 
             double colval = 0;
             for (int j = 0; j < cols; j++) {
-                double[] vals = row.get(0, j); // the row is 0, because the image is one channel image, is rgb image, vals's size is 3
+                // the row is 0, because the image is one channel image, is rgb image, vals's size is 3
+                double[] vals;
+                if (vertical) {
+                    vals = cell.get(j, 0);
+                } else {
+                    vals = cell.get(0, j);
+                }
                 if (vals == null) {
-                    System.out.println("row=[" + i + "], col=[" + j + "]");
+                    //System.out.println("row=[" + i + "], col=[" + j + "]");
                     continue;
                 }
                 colval += vals[0];
             }
             calcHistRows[i] = colval;
         }
-        System.out.println(calcHistRows);
+        return calcHistRows;
+    }
+
+    /**
+     * 将图片按行切分。
+     * @param binary
+     * @return
+     */
+    public static List<Mat> sliceRows(Mat binary) {
+
+        //binary = Imgcodecs.imread("/tmp/aa_nation.png");
+
+        List<Mat> matList = new ArrayList<>();
+
+        int cols = binary.cols();
+        int rows = binary.rows();
+        double[] calcHistRows = projection(binary, false);
+//        double[] calcHistRows = new double[rows];
+
+//        for (int i = 0; i < rows; i++) {
+//            Mat row = binary.row(i);
+//
+//            double colval = 0;
+//            for (int j = 0; j < cols; j++) {
+//                double[] vals = row.get(0, j); // the row is 0, because the image is one channel image, is rgb image, vals's size is 3
+//                if (vals == null) {
+//                    System.out.println("row=[" + i + "], col=[" + j + "]");
+//                    continue;
+//                }
+//                colval += vals[0];
+//            }
+//            calcHistRows[i] = colval;
+//        }
+//        System.out.println(calcHistRows);
 
         int maxRowNunber = rows / 3;
 
@@ -1003,6 +1066,7 @@ public class OpenCVUtils {
         int h1 = pointMap.get("firstEnd");
         Rect rowRect = new Rect(0, y1, cols, h1 - y1);
         Mat fmat = new Mat(binary, rowRect);
+        matList.add(fmat);
         Imgcodecs.imwrite("/tmp/hist_1.png", fmat);
 
 
@@ -1011,6 +1075,7 @@ public class OpenCVUtils {
             Integer h2 = pointMap.get("secondEnd");
             Rect rowRect2 = new Rect(0, y2, cols, h2 - y2 + 7);
             Mat smat = new Mat(binary, rowRect2);
+            matList.add(smat);
             Imgcodecs.imwrite("/tmp/hist_2.png", smat);
         }
 
@@ -1020,10 +1085,132 @@ public class OpenCVUtils {
             Integer h3 = pointMap.get("thirdEnd");
             Rect rowRect3 = new Rect(0, y3, cols, h3 - y3);
             Mat smat = new Mat(binary, rowRect3);
+            matList.add(smat);
             Imgcodecs.imwrite("/tmp/hist_3.png", smat);
         }
 
-        System.out.println(pointMap);
+        return matList;
+    }
+
+    /**
+     * 竖直分割列，也就是将行按列分割成字符
+     * @param colHists 列统计的直方图
+     * @param startIndex 下一次递归开始的索引
+     * @param maxReursion 最大递归数
+     * @param rowOrColLimit 行数或者列数
+     * @param minRowOrColNunber 每一行或者列的最小值
+     * @param pointMap 要返回的点
+     * @return 切分后的字符
+     */
+    public static void sliceCols(double[] colHists, int startIndex, int maxReursion, int rowOrColLimit, int minRowOrColNunber, Map<String, Integer> pointMap) {
+//        List<Mat> resultMats = new ArrayList<>();
+
+        int span = 0;
+        for (int j = startIndex; j < rowOrColLimit; j++) {
+            if (colHists[j] == 0D) {
+                String start = getKey(maxReursion, true);
+                Integer firstX = pointMap.get(start);
+                if (firstX != null) { // 第一个点出现过
+                    int diff = j - span;
+                    if (diff < minRowOrColNunber) { // 小于最小行数，用第二个0点替换第一个0点
+                        pointMap.put(start, j);
+                        span = j;
+                        continue; // 现在在处理第一个点，可以直接下一次循环
+                    } else {
+                        pointMap.put(getKey(maxReursion, false), j);
+//                        span = j;
+                        // 迭代一次，将递归次数减1
+                        if (maxReursion > 1) {
+                            sliceCols(colHists, j, --maxReursion, rowOrColLimit, minRowOrColNunber, pointMap);
+                        }
+                        break;
+                    }
+                } else { // 第一个点还没有出现
+                    pointMap.put(start, j);
+                    span = j;
+                    continue;
+                }
+            }
+        }
+//        return resultMats;
+    }
+
+    /**
+     * 组和map中的key，懒得去排序了
+     * @param index 序号
+     * @param start 是否是开始
+     * @return key string
+     */
+    private static String getKey(int index, boolean start) {
+        index = 12 - index;
+        if (start) {
+            if (index < 10) {
+                return "fa0" + index;
+            } else {
+                return "fa" + index;
+            }
+        } else {
+            if (index < 10) {
+                return "fe0" + index;
+            } else {
+                return "fe" + index;
+            }
+        }
+    }
+
+    public static Map<Integer, List<Mat>> splitChar(List<Mat> rowMatList) {
+        if (rowMatList == null || rowMatList.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Integer, List<Mat>> charListMap = new HashMap<>();
+        int j = 1;
+        for (Mat row : rowMatList) {
+            double[] colHists = projection(row, true);
+            int colLimit = row.cols();
+            // 可能的列数，但是对于数字1，是一个问题。这个数字可以设置一个很小的经验值，比如10（这样会保留噪音），但是，可以对这个切割下来的字符
+            // 再做一次水平方向的投影，一般可以去掉这个噪音
+            int colNumber = 10; // colLimit / 14 - 1;
+            SortedMap<String, Integer> pointMap = new TreeMap<>();
+
+            sliceCols(colHists, 0, 11, colLimit, colNumber, pointMap);
+//            sliceColCharList.add(pointMap);
+
+
+            int height = row.height();
+
+            List<Mat> charMatList = new ArrayList<>();
+            int len = pointMap.size();
+            int i = len / 2 + 1; // 只需要循环一半
+            for (SortedMap.Entry<String, Integer> entry : pointMap.entrySet()) {
+                if (i > 0) {
+                    String key = entry.getKey();
+                    Integer x2 = getPos(key, pointMap);
+                    if (x2 == null) {
+                        continue;
+                    }
+                    Integer x = entry.getValue();
+                    Rect rect = new Rect(x, 0, x2 - x, height);
+                    Mat cell = new Mat(row, rect);
+                    charMatList.add(cell);
+                } else {
+                    break;
+                }
+                i--;
+            }
+            charListMap.put(j++, charMatList);
+        }
+//        LOGGER.info("切分后的字符={}", sliceColCharList);
+
+//        for (Map<String, Integer> map : sliceColCharList) { // 处理每一行字符
+//
+//        }
+
+        return charListMap;
+    }
+
+    private static Integer getPos(String x, Map<String, Integer> pointMap) {
+        String key = x.replace('a', 'e');
+        return pointMap.get(key);
     }
 
     /**
