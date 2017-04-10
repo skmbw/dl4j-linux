@@ -755,7 +755,7 @@ public class OpenCVUtils {
 //
 //        toBytes(mat, ".jpg");
 
-        Mat mat = Imgcodecs.imread("/home/yinlei/idcard2/id46.jpg");
+        Mat mat = Imgcodecs.imread("/home/yinlei/idcard2/id88.jpg");
 
         mat = resize(mat, 1000D); // 要统一归一化，否则，后面不好处理
 
@@ -788,6 +788,9 @@ public class OpenCVUtils {
     }
 
     public static void splitBinaryAddress(Mat addressMat) {
+        addressMat = Imgcodecs.imread("/home/yinlei/Sample-1000/6.png");
+        Imgproc.resize(addressMat, addressMat, new Size(addressMat.width() * 2, addressMat.height() * 2));
+
         Mat blur = new Mat();
         Imgproc.blur(addressMat, blur, new Size(3, 3));
 
@@ -958,7 +961,10 @@ public class OpenCVUtils {
 //        }
 //        System.out.println(calcHistRows);
 
-        int maxRowNunber = rows / 3;
+        int maxRowNunber = rows / 5;
+        if (maxRowNunber < 22) {
+            maxRowNunber = 22;
+        }
 
         Map<String, Integer> pointMap = new HashMap<>();
         pointMap.put("first", -1);
@@ -1062,8 +1068,8 @@ public class OpenCVUtils {
         }
 
 
-        int y1 = pointMap.get("first");
-        int h1 = pointMap.get("firstEnd");
+        Integer y1 = pointMap.get("first");
+        Integer h1 = pointMap.get("firstEnd");
         Rect rowRect = new Rect(0, y1, cols, h1 - y1);
         Mat fmat = new Mat(binary, rowRect);
         matList.add(fmat);
@@ -1071,8 +1077,8 @@ public class OpenCVUtils {
 
 
         Integer y2 = pointMap.get("second");
-        if (y2 != null && y2 != -1) {
-            Integer h2 = pointMap.get("secondEnd");
+        Integer h2 = pointMap.get("secondEnd");
+        if (y2 != null && y2 != -1 && h2 != null) {
             Rect rowRect2 = new Rect(0, y2, cols, h2 - y2 + 7);
             Mat smat = new Mat(binary, rowRect2);
             matList.add(smat);
@@ -1081,9 +1087,9 @@ public class OpenCVUtils {
 
 
         Integer y3 = pointMap.get("third");
-        if (y3 != null && y3 != -1) {
-            Integer h3 = pointMap.get("thirdEnd");
-            Rect rowRect3 = new Rect(0, y3, cols, h3 - y3);
+        Integer h3 = pointMap.get("thirdEnd");
+        if (y3 != null && y3 != -1 && (h3 != null || (h3 == null && (rows - y3) >=maxRowNunber))) {
+            Rect rowRect3 = new Rect(0, y3, cols, (h3 == null ? rows : h3) - y3);
             Mat smat = new Mat(binary, rowRect3);
             matList.add(smat);
             Imgcodecs.imwrite("/tmp/hist_3.png", smat);
