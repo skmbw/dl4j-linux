@@ -14,24 +14,24 @@ public class ResizeTest {
     }
 
     public static void main(String[] args) {
-        Mat img = Imgcodecs.imread("/home/yinlei/obama.jpg");
+        Mat img = Imgcodecs.imread("/tmp/21.png");
         Mat rotated = new Mat();
         img.copyTo(rotated);
         Mat dst = new Mat();
-        Size size = new Size(1450, 930);
+        Size size = new Size(33, 36);
         Imgproc.resize(img, dst, size);
 
-        Imgcodecs.imwrite("/home/yinlei/obama.png", dst);
+        Imgcodecs.imwrite("/tmp/21_1.png", dst);
 
 
-        Mat rotImg = rotateImage1(rotated, -9);
-        Imgcodecs.imwrite("/home/yinlei/rote.png", rotImg);
-
-        Rect rect = new Rect(50, 80, 475, 310);
-
-        Mat sliceMat = new Mat(rotImg, rect);
-
-        Imgcodecs.imwrite("/home/yinlei/sliceMat.png", sliceMat);
+//        Mat rotImg = rotateImage1(rotated, -9);
+//        Imgcodecs.imwrite("/home/yinlei/rote.png", rotImg);
+//
+//        Rect rect = new Rect(50, 80, 475, 310);
+//
+//        Mat sliceMat = new Mat(rotImg, rect);
+//
+//        Imgcodecs.imwrite("/home/yinlei/sliceMat.png", sliceMat);
     }
 
     public static Mat guiyihuaMatByRoi(Mat cpsrcMat, RotatedRect rotatedRect) {
