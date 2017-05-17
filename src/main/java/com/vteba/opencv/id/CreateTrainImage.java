@@ -24,7 +24,7 @@ public class CreateTrainImage {
     }
 
     public static void main(String[] args) {
-        String path = "/home/yinlei/2890zi/";
+        String path = "/home/yinlei/sfz/all-hanzi/";
         Map<String, Integer> map = new HashMap<>();
         int i = 0;
         int k = 1;
@@ -36,7 +36,7 @@ public class CreateTrainImage {
                     String name = file.getName();
 
 //                    name = name.substring(name.indexOf("_"));
-//                    file.renameTo(new File("/home/yinlei/2890zi/" + k++ + name));
+//                    file.renameTo(new File("/home/yinlei/sfz/sfz_gray/yinlei_" + k++ + ".png"));
 
                     name = name.substring(name.indexOf("_") + 1, name.indexOf("."));
                     if (!map.containsKey(name)) {
@@ -60,7 +60,7 @@ public class CreateTrainImage {
 //                    Mat binary = new Mat(); // 二值化
 //                    Imgproc.adaptiveThreshold(gray, binary, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY_INV, 13, 10);
 //
-//                    Imgcodecs.imwrite("/home/yinlei/char/2890-40001-43350/" + name, binary);
+//                    Imgcodecs.imwrite("/home/yinlei/sfz/all-hanzi/" + name, binary);
 
                 } catch (Exception e) {
                     e.printStackTrace();

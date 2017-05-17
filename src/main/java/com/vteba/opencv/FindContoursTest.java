@@ -344,7 +344,7 @@ public class FindContoursTest {
             // 另外有一些身份证地址是以市开头的，并没有省，例如杭州市
             int addressX = (int) (width * 0.18);
             int addressY = (int) (height * 0.485);
-            int addressWidth = (int) (width * 0.441);
+            int addressWidth = (int) (width * 0.445);
             int addressHeight = (int) (height * 0.276);
 
             Rect addressRect = new Rect(addressX, addressY, addressWidth, addressHeight);

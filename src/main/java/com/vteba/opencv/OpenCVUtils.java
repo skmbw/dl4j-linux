@@ -755,7 +755,7 @@ public class OpenCVUtils {
 //
 //        toBytes(mat, ".jpg");
 
-        Mat mat = Imgcodecs.imread("/home/yinlei/idcard2/id88.jpg");
+        Mat mat = Imgcodecs.imread("/home/yinlei/sfz_test/lin/41.jpg");
 
         mat = resize(mat, 1000D); // 要统一归一化，否则，后面不好处理
 
@@ -778,13 +778,15 @@ public class OpenCVUtils {
         Imgcodecs.imwrite("/tmp/aa_nation.png", newNation);
 
         Mat addressMat = map.get("address");
+        Imgcodecs.imwrite("/tmp/aa_address1.png", addressMat);
         Mat newAddress = addressContour(addressMat);
-        String address = textRecognize(newAddress, 3);
+//        String address = textRecognize(newAddress, 3);
         Imgcodecs.imwrite("/tmp/aa_address.png", newAddress);
 
-        postProcess(code, address);
+//        postProcess(code, address);
 
-        splitBinaryAddress(newAddress);
+//        splitBinaryAddress(addressMat);
+        splitAddressChar(addressMat);
     }
 
 
@@ -810,8 +812,9 @@ public class OpenCVUtils {
         Mat source = new Mat();
         Imgproc.adaptiveThreshold(blur3, source, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY_INV, 25, 10);
 
-        List<Mat> rowMatList = sliceRows(binary, source); // 按行切割图片
-        Map<Integer, List<Mat>> charListMap = splitChar(rowMatList);
+        // 按行切割图片，切割两种，1是高噪音（清晰），2是低噪音（模糊）
+        Map<Integer, List<Mat>> rowMatMap = sliceRows(binary, source); // 按行切割图片
+        Map<Integer, List<Mat>> charListMap = splitChar(rowMatMap);
 //        int row = charListMap.size();
 //        for (int i = 1; i <= row; i++) {
 //            List<Mat> charList = charListMap.get(i);
@@ -825,32 +828,24 @@ public class OpenCVUtils {
     }
 
 
-//    /**
-//     * 将地址图片切割成字符
-//     * @param addressMat 地址图片
-//     */
-//    public static void splitChar(Mat addressMat) {
-//        Mat blur = new Mat();
-//        Imgproc.blur(addressMat, blur, new Size(3, 3));
-//
-//        Mat gray = new Mat();
-//        Imgproc.cvtColor(blur, gray, Imgproc.COLOR_RGB2GRAY); // 灰度图
-//
-//        Mat binary = new Mat();
-//        Imgproc.adaptiveThreshold(gray, binary, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY_INV, 25, 10);
-//
-//        List<Mat> rowMatList = sliceRows(binary, addressMat); // 按行切割图片
-//        Map<Integer, List<Mat>> charListMap = splitChar(rowMatList);
-//        int row = charListMap.size();
-//        for (int i = 1; i <= row; i++) {
-//            List<Mat> charList = charListMap.get(i);
-//            int j = 1;
-//            for (Mat charMat : charList) {
-//                Imgcodecs.imwrite("/tmp/test_collection/tmp/" + System.currentTimeMillis() + "_" + i + "_" + j++ + ".png", charMat);
-//            }
-//        }
-//
-//    }
+    /**
+     * 将地址图片切割成字符
+     * @param addressMat 地址图片
+     */
+    public static Map<Integer, List<Mat>> splitAddressChar2(Mat addressMat) {
+        Mat blur = new Mat();
+        Imgproc.blur(addressMat, blur, new Size(3, 3));
+
+        Mat binary = new Mat();
+        Imgproc.adaptiveThreshold(blur, binary, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY_INV, 25, 10);
+
+        // 按行切割图片，切割两种，1是高噪音（清晰），2是低噪音（模糊）
+        Map<Integer, List<Mat>> rowMatMap = sliceRows(binary, binary); // 按行切割图片
+        Map<Integer, List<Mat>> charListMap = splitChar(rowMatMap);
+
+        return charListMap;
+
+    }
 
 
     public static void splitBinaryAddress(Mat addressMat) {
@@ -868,8 +863,8 @@ public class OpenCVUtils {
         Imgproc.adaptiveThreshold(gray, binary, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY_INV, 25, 10);
 //        Imgcodecs.imwrite("/tmp/address_binary.png", binary);
 
-        List<Mat> rowMatList = sliceRows(binary, addressMat); // 按行切割图片
-        Map<Integer, List<Mat>> charListMap = splitChar(rowMatList);
+        Map<Integer, List<Mat>> rowMatMap = sliceRows(binary, binary); // 按行切割图片
+        Map<Integer, List<Mat>> charListMap = splitChar(rowMatMap);
         int row = charListMap.size();
         for (int i = 1; i <= row; i++) {
             List<Mat> charList = charListMap.get(i);
@@ -1001,8 +996,10 @@ public class OpenCVUtils {
      * @param binary
      * @return
      */
-    public static List<Mat> sliceRows(Mat binary, Mat source) {
+    public static Map<Integer, List<Mat>> sliceRows(Mat binary, Mat source) {
+        Map<Integer, List<Mat>> result = new HashMap<>();
         List<Mat> matList = new ArrayList<>();
+        List<Mat> binaryMatList = new ArrayList<>();
 
         int cols = binary.cols();
         int rows = binary.rows();
@@ -1051,7 +1048,7 @@ public class OpenCVUtils {
 //        index = 0;
 //        span = 0;
 
-        LOGGER.info("span={}", span);
+//        LOGGER.info("span={}", span);
 
         // 迭代3次最好了，分别处理三个行坐标
         for (int j = span; j < rows; j++) {
@@ -1073,9 +1070,6 @@ public class OpenCVUtils {
                     span = j;
                     continue;
                 }
-
-
-
             }
 
 //            index++;
@@ -1083,7 +1077,7 @@ public class OpenCVUtils {
 
 //        index = 0;
 //        span = 0;
-        LOGGER.info("span={}", span);
+//        LOGGER.info("span={}", span);
         // 迭代3次最好了，分别处理三个行坐标
         if (rows - span >= maxRowNunber) {
             for (int j = span; j < rows; j++) {
@@ -1115,8 +1109,9 @@ public class OpenCVUtils {
         if (y1 != null && h1 != null && y1 != -1) {
             Rect rowRect = new Rect(0, y1, cols, h1 - y1);
             Mat fmat = new Mat(source, rowRect);
+            Mat fmat2 = new Mat(binary, rowRect);
             matList.add(fmat);
-//            Imgcodecs.imwrite("/tmp/hist_1.png", fmat);
+            binaryMatList.add(fmat2);
         }
 
         Integer y2 = pointMap.get("second");
@@ -1128,8 +1123,9 @@ public class OpenCVUtils {
             }
             Rect rowRect2 = new Rect(0, y2, cols, height);
             Mat smat = new Mat(source, rowRect2);
+            Mat smat2 = new Mat(binary, rowRect2);
             matList.add(smat);
-//            Imgcodecs.imwrite("/tmp/hist_2.png", smat);
+            binaryMatList.add(smat2);
         }
 
 
@@ -1137,12 +1133,16 @@ public class OpenCVUtils {
         Integer h3 = pointMap.get("thirdEnd");
         if (y3 != null && y3 != -1 && (h3 != null || (h3 == null && (rows - y3) >=maxRowNunber))) {
             Rect rowRect3 = new Rect(0, y3, cols, (h3 == null ? rows : h3) - y3);
-            Mat smat = new Mat(source, rowRect3);
-            matList.add(smat);
-//            Imgcodecs.imwrite("/tmp/hist_3.png", smat);
+            Mat tmat = new Mat(source, rowRect3);
+            Mat tmat2 = new Mat(binary, rowRect3);
+            matList.add(tmat);
+            binaryMatList.add(tmat2);
         }
 
-        return matList;
+        result.put(1, matList);
+        result.put(2, binaryMatList);
+
+        return result;
     }
 
     /**
@@ -1150,32 +1150,37 @@ public class OpenCVUtils {
      * @param colHists 列统计的直方图
      * @param startIndex 下一次递归开始的索引
      * @param maxReursion 最大递归数
-     * @param rowOrColLimit 行数或者列数
-     * @param minRowOrColNunber 每一行或者列的最小值
+     * @param colLimit 行数或者列数
+     * @param minColNunber 每一列的最小值
      * @param pointMap 要返回的点
      * @return 切分后的字符
      */
-    public static void sliceCols(double[] colHists, int startIndex, int maxReursion, int rowOrColLimit, int minRowOrColNunber, Map<String, Integer> pointMap) {
-//        List<Mat> resultMats = new ArrayList<>();
-
+    public static void sliceCols(double[] colHists, int startIndex, int maxReursion, int colLimit, int minColNunber, Map<String, Integer> pointMap) {
         int span = 0;
-        int range = 0;
-        for (int j = startIndex; j < rowOrColLimit; j++) {
+        int len = colHists.length;
+        for (int j = startIndex; j < colLimit; j++) {
             if (colHists[j] == 0D) {
                 String start = getKey(maxReursion, true);
                 Integer firstX = pointMap.get(start);
                 if (firstX != null) { // 第一个点出现过
                     int diff = j - span;
-                    if (diff < minRowOrColNunber) { // 小于最小行数，用第二个0点替换第一个0点，去除掉一些噪音，但是可能去掉数字或字的一部分（例如临的左边的一竖）
+                    if (diff < minColNunber) { // 小于最小行数，用第二个0点替换第一个0点，去除掉一些噪音，但是可能去掉数字或字的一部分（例如临的左边的一竖）
                         pointMap.put(start, j); // 更新开始的点
                         span = j;
 
                         continue; // 现在在处理第一个点，可以直接下一次循环
                     } else {
-                        pointMap.put(getKey(maxReursion, false), j);
-                        // 迭代一次，将递归次数减1
-                        if (maxReursion > 1) {
-                            sliceCols(colHists, j, --maxReursion, rowOrColLimit, minRowOrColNunber, pointMap);
+                        int j1 = j + 1;
+                        int j2 = j + 2;
+//                        if (j1 < len && j2 < len && colHists[j1] == 0D && colHists[j2] == 0d) { // 连续3个都是0值，可以认为是分割线
+                        if (j1 < len && colHists[j1] == 0D) { // 连续2个都是0值，可以认为是分割线
+                            pointMap.put(getKey(maxReursion, false), j);
+                            // 迭代一次，将递归次数减1
+                            if (maxReursion > 1) {
+                                sliceCols(colHists, j, --maxReursion, colLimit, minColNunber, pointMap);
+                            }
+                        } else {
+                            continue;
                         }
                         break;
                     }
@@ -1186,8 +1191,56 @@ public class OpenCVUtils {
                 }
             }
         }
-//        return resultMats;
     }
+
+//    /**
+//     * 竖直分割列，也就是将行按列分割成字符
+//     * @param colHists 列统计的直方图
+//     * @param startIndex 下一次递归开始的索引
+//     * @param maxReursion 最大递归数
+//     * @param colLimit 行数或者列数
+//     * @param minColNunber 每一列的最小值
+//     * @param pointMap 要返回的点
+//     * @return 切分后的字符
+//     */
+//    public static void splitCols(double[] colHists, int startIndex, int maxReursion, int colLimit, int minColNunber, Map<String, Integer> pointMap) {
+//        int span = 0;
+//        int len = colHists.length;
+//        for (int j = startIndex; j < colLimit; j++) {
+//            if (colHists[j] == 0D) {
+//                String start = getKey(maxReursion, true);
+//                Integer firstX = pointMap.get(start);
+//                if (firstX != null) { // 第一个点出现过
+//                    int diff = j - span;
+//                    if (diff < minColNunber) { // 小于最小行数，用第二个0点替换第一个0点，去除掉一些噪音，但是可能去掉数字或字的一部分（例如临的左边的一竖）
+//                        pointMap.put(start, j); // 更新开始的点
+//                        span = j;
+//
+//                        continue; // 现在在处理第一个点，可以直接下一次循环
+//                    } else {
+//                        int j1 = j + 1;
+//                        if (j1 < len && colHists[j1] == 0D) { // 连续2个都是0值，可以认为是分割线
+//                            pointMap.put(getKey(maxReursion, false), j);
+//                            // 迭代一次，将递归次数减1
+//                            if (maxReursion > 1) {
+//                                splitCols(colHists, j, --maxReursion, colLimit, minColNunber, pointMap);
+//                            }
+//                        } else {
+//                            continue;
+//                        }
+//                        break;
+//                    }
+//                } else { // 第一个点还没有出现
+//                    pointMap.put(start, j);
+//                    span = j;
+//                    continue;
+//                }
+//            } else {
+//                pointMap.put("" + i)
+//            }
+//        }
+//    }
+
 
     /**
      * 组合map中的key，懒得去排序了，最大99个字符（肯定够用了）
@@ -1215,21 +1268,25 @@ public class OpenCVUtils {
 
     /**
      * 将一行文字切割成字符
-     * @param rowMatList 待切割的文字行
+     * @param rowMatMap 待切割的文字行，两种，1是source（size(3, 3)），2是去噪音更多（size(4, 4)）
      * @return 切割后的文字
      */
-    public static Map<Integer, List<Mat>> splitChar(List<Mat> rowMatList) {
-        if (rowMatList == null || rowMatList.isEmpty()) {
+    public static Map<Integer, List<Mat>> splitChar(Map<Integer, List<Mat>> rowMatMap) {
+        if (rowMatMap == null || rowMatMap.isEmpty()) {
             return Collections.emptyMap();
         }
         Map<Integer, List<Mat>> charListMap = new HashMap<>();
         int j = 1;
+        List<Mat> rowMatList = rowMatMap.get(2);
+        List<Mat> sourceRowMatList = rowMatMap.get(1);
+        int k = 0;
         for (Mat row : rowMatList) {
+            Mat sourceRow = sourceRowMatList.get(k++);
             double[] colHists = projection(row, true);
             int colLimit = row.cols();
             // 可能的列数，但是对于数字1，是一个问题。这个数字可以设置一个很小的经验值，比如10（这样会保留噪音），但是，可以对这个切割下来的字符
             // 再做一次水平方向的投影，一般可以去掉这个噪音
-            int colNumber = 10; // colLimit / 14 - 1;
+            int colNumber = 9; // colLimit / 14 - 1;
             int theoryMaxCol = colLimit / 14;
             int theoryMinCol = colLimit / 26;
             SortedMap<String, Integer> pointMap = new TreeMap<>();
@@ -1252,14 +1309,23 @@ public class OpenCVUtils {
                     }
                     String key = entry.getKey(); // 开始的键
                     Integer x2 = getPos(key, pointMap); // 结束的位置
-                    if (x2 == null) {
-                        continue;
+                    if (x2 == null) { // 最后一个点，没有结束位置，给他最大的x坐标
+                        if (i == 1) {
+                            x2 = colLimit;
+                        } else {
+                            i--;
+                            continue;
+                        }
                     }
 
                     Integer x = entry.getValue(); // 开始的位置
                     int width = x2 - x;
+                    if (width < colNumber) {
+                        i--;
+                        continue;
+                    }
 
-                    int limit = (int) (height * 0.8);
+                    int limit = (int) (height * 0.7);
 
                     if (width > 0 && width < limit) { // 小于标准经验宽度，看下一个是否也是小于
                         String indexStr = key.substring(2);
@@ -1276,6 +1342,7 @@ public class OpenCVUtils {
                             String nextEndKey = nextKey(index, false);
                             Integer endPos = pointMap.get(nextEndKey);
                             if (endPos == null) {
+                                i--;
                                 continue;
                             }
                             width = endPos - x;
@@ -1288,7 +1355,8 @@ public class OpenCVUtils {
 //                    }
                     if (width > 0) {
                         Rect rect = new Rect(x, 0, width, height);
-                        Mat cell = new Mat(row, rect);
+//                        Mat cell = new Mat(row, rect);
+                        Mat cell = new Mat(sourceRow, rect);
                         charMatList.add(cell);
                     }
                 } else {
@@ -1298,11 +1366,6 @@ public class OpenCVUtils {
             }
             charListMap.put(j++, charMatList);
         }
-//        LOGGER.info("切分后的字符={}", sliceColCharList);
-
-//        for (Map<String, Integer> map : sliceColCharList) { // 处理每一行字符
-//
-//        }
 
         return charListMap;
     }
